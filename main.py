@@ -28,7 +28,7 @@ class Buchung:
 
 
 class Arbeitstag:
-    def __init__(self, datum: str, day_start: str = "07:00", day_end: str = "19:00"):
+    def __init__(self, datum: str, day_start: str = "08:00", day_end: str = "18:00"):
         self.datum = datetime.strptime(datum, "%Y-%m-%d").date()
         self.KW = self.datum.isocalendar()[1]
         self.day_start = datetime.strptime(day_start, "%H:%M")
@@ -84,6 +84,7 @@ def get_file_paths():
 
 
 def load_excel_file(path):
+    print("Loading Excel file:" + path)
     if os.path.isfile(path):
         df_excel = pd.read_excel(path)
         df_excel['Datum'] = pd.to_datetime(df_excel['Datum'], format='%d.%m.%Y')
@@ -105,7 +106,7 @@ def generate_valid_dates_for_month(mitarbeiter_df):
         valid_dates = []
         for day in range(1, calendar.monthrange(year, month_number)[1] + 1):
             date = datetime(year, month_number, day)
-            if date.weekday() < 6:
+            if date.weekday() < 5:
                 valid_dates.append(date.date())
 
         for valid_date in valid_dates:
@@ -171,6 +172,11 @@ def convert_schedule_to_dataframe(schedules):
     return df_schedule
 
 
+
+
+
+
+
 def insert_secondary_events_into_schedule_across_days(mitarbeiter_df_secondary, schedules):
     events_to_remove = []
     failed_events = []
@@ -186,40 +192,54 @@ def insert_secondary_events_into_schedule_across_days(mitarbeiter_df_secondary, 
         event_inserted = False
 
         for date, schedule in schedules.items():
+            # Maximal 10 Stunden am Tag erlaubt
+            stunden_bereits_gebucht = sum(event.dauer for event in schedule.events)
+            if stunden_bereits_gebucht + event_duration > 10.0:
+                continue  # Tag überspringen, da zu viel
+
             free_slots = schedule.get_free_slots()
 
-            if free_slots:
-                for slot in free_slots:
-                    start_time, end_time = slot
-                    if (end_time - start_time).seconds / 3600 >= event_duration:
-                        new_start_time = start_time
-                        new_end_time = new_start_time + timedelta(hours=event_duration)
+            for slot in free_slots:
+                start_time, end_time = slot
+                slot_duration_hours = (end_time - start_time).seconds / 3600
 
-                        new_event = Buchung(
-                            von=new_start_time.strftime("%H:%M"),
-                            bis=new_end_time.strftime("%H:%M"),
-                            dauer=event_duration,
-                            fakturierbar=row["fakturierbar"],
-                            vorgang=row["Vorgang"],
-                            mitarbeiter=row["Mitarbeiter"],
-                            taetigkeit=row["Tätigkeit"],
-                            bemerkung=row["Bemerkung"],
-                            ort=row["Ort"],
-                            ort_projektrelevant=row["Ort projektrelevant"],
-                            projekt_nr=row["Projekt-Nr."],
-                            projekt_bezeichnung=row["Projektbezeichnung"],
-                            dienstleistung=row["Dienstleistung"],
-                            gewerk=row["Gewerk"]
-                        )
+                if slot_duration_hours >= 1.0 and slot_duration_hours >= event_duration:
+                    new_start_time = start_time
+                    new_end_time = new_start_time + timedelta(hours=event_duration)
 
+                    new_event = Buchung(
+                        von=new_start_time.strftime("%H:%M"),
+                        bis=new_end_time.strftime("%H:%M"),
+                        dauer=event_duration,
+                        fakturierbar=row["fakturierbar"],
+                        vorgang=row["Vorgang"],
+                        mitarbeiter=row["Mitarbeiter"],
+                        taetigkeit=row["Tätigkeit"],
+                        bemerkung=row["Bemerkung"],
+                        ort=row["Ort"],
+                        ort_projektrelevant=row["Ort projektrelevant"],
+                        projekt_nr=row["Projekt-Nr."],
+                        projekt_bezeichnung=row["Projektbezeichnung"],
+                        dienstleistung=row["Dienstleistung"],
+                        gewerk=row["Gewerk"]
+                    )
+
+                    # Überschneidung prüfen
+                    overlap_found = False
+                    for existing in schedule.events:
+                        if new_event.von < existing.bis and existing.von < new_event.bis:
+                            overlap_found = True
+                            break
+
+                    if not overlap_found:
                         schedule.add_event(new_event)
                         regular_events.append({
                             "Datum": date,
                             "Mitarbeiter": mitarbeiter,
                             "Vorgang": row["Vorgang"],
                             "Dauer": row["Dauer"],
-                            "Von": row["von"],
-                            "Bis": row["bis"],
+                            "Von": new_event.von.strftime("%H:%M"),
+                            "Bis": new_event.bis.strftime("%H:%M"),
                             "Ort": row["Ort"],
                             "Ort projektrelevant": row["Ort projektrelevant"],
                             "Projekt-Nr.": row["Projekt-Nr."],
@@ -230,14 +250,15 @@ def insert_secondary_events_into_schedule_across_days(mitarbeiter_df_secondary, 
                             "Tätigkeit": row["Tätigkeit"],
                             "Fakturierbar": row["fakturierbar"]
                         })
-                        event_inserted = True
                         events_to_remove.append(idx)
-                        break
+                        event_inserted = True
+                        break  # Slot gefunden
 
             if event_inserted:
-                break
+                break  # Tag gefunden
 
         if not event_inserted:
+            # Kein passender Slot in keiner Woche gefunden
             failed_event = {
                 "Mitarbeiter": row["Mitarbeiter"],
                 "Vorgang": row["Vorgang"],
@@ -260,6 +281,10 @@ def insert_secondary_events_into_schedule_across_days(mitarbeiter_df_secondary, 
     failed_df = pd.DataFrame(failed_events)
 
     return mitarbeiter_df_secondary, failed_df, regular_events
+
+
+
+
 
 
 if __name__ == '__main__':
