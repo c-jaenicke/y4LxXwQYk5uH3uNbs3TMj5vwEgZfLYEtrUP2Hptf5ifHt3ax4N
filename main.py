@@ -74,7 +74,7 @@ def get_file_paths():
             if not output_directory:
                 output_directory = os.getcwd()
 
-            output_filename = f"{os.path.basename(main_file).split('.')[0]}_{os.path.basename(secondary_file).split('.')[0]}_ZUSAMMENGEFÜGT.xlsx"
+            output_filename = f"{os.path.basename(main_file).split('.')[0]}_{os.path.basename(secondary_file).split('.')[0]}_KOMB.xlsx"
             output_path = os.path.join(output_directory, output_filename)
 
             return df_main, df_secondary, output_path
@@ -84,12 +84,16 @@ def get_file_paths():
 
 
 def load_excel_file(path):
-    print("Loading Excel file:" + path)
+    print("Loading Excel file: " + path)
     if os.path.isfile(path):
         df_excel = pd.read_excel(path)
         df_excel['Datum'] = pd.to_datetime(df_excel['Datum'], format='%d.%m.%Y')
-        df_excel['von'] = pd.to_datetime(df_excel['von'], format='%H:%M:%S').dt.strftime('%H:%M')
-        df_excel['bis'] = pd.to_datetime(df_excel['bis'], format='%H:%M:%S').dt.strftime('%H:%M')
+        try:
+            df_excel['von'] = pd.to_datetime(df_excel['von'], format='%H:%M:%S').dt.strftime('%H:%M')
+            df_excel['bis'] = pd.to_datetime(df_excel['bis'], format='%H:%M:%S').dt.strftime('%H:%M')
+        except:
+            print
+        print("Success loading Excel file: " + path)
         return df_excel
     else:
         raise FileNotFoundError(f"The file at {path} was not found.")
@@ -147,10 +151,10 @@ def convert_schedule_to_dataframe(schedules):
             event_dict = {
                 "KW": schedule.KW,
                 "Datum": schedule.datum,
-                "Von": event.von.strftime("%H:%M"),
-                "Bis": event.bis.strftime("%H:%M"),
+                "von": event.von.strftime("%H:%M"),
+                "bis": event.bis.strftime("%H:%M"),
                 "Dauer": event.dauer,
-                "Fakturierbar": event.fakturierbar,
+                "fakturierbar": event.fakturierbar,
                 "Vorgang": event.vorgang,
                 "Mitarbeiter": event.mitarbeiter,
                 "Tätigkeit": event.taetigkeit,
@@ -166,7 +170,7 @@ def convert_schedule_to_dataframe(schedules):
 
     df_schedule = pd.DataFrame(event_list)
     df_schedule = df_schedule[[
-        "KW", "Datum", "Von", "Bis", "Dauer", "Fakturierbar", "Vorgang", "Mitarbeiter", "Tätigkeit",
+        "KW", "Datum", "von", "bis", "Dauer", "fakturierbar", "Vorgang", "Mitarbeiter", "Tätigkeit",
         "Bemerkung", "Ort", "Ort projektrelevant", "Projekt-Nr.", "Projektbezeichnung", "Dienstleistung", "Gewerk"
     ]]
     return df_schedule
@@ -238,8 +242,8 @@ def insert_secondary_events_into_schedule_across_days(mitarbeiter_df_secondary, 
                             "Mitarbeiter": mitarbeiter,
                             "Vorgang": row["Vorgang"],
                             "Dauer": row["Dauer"],
-                            "Von": new_event.von.strftime("%H:%M"),
-                            "Bis": new_event.bis.strftime("%H:%M"),
+                            "von": new_event.von.strftime("%H:%M"),
+                            "bis": new_event.bis.strftime("%H:%M"),
                             "Ort": row["Ort"],
                             "Ort projektrelevant": row["Ort projektrelevant"],
                             "Projekt-Nr.": row["Projekt-Nr."],
@@ -248,7 +252,7 @@ def insert_secondary_events_into_schedule_across_days(mitarbeiter_df_secondary, 
                             "Gewerk": row["Gewerk"],
                             "Bemerkung": row["Bemerkung"],
                             "Tätigkeit": row["Tätigkeit"],
-                            "Fakturierbar": row["fakturierbar"]
+                            "fakturierbar": row["fakturierbar"]
                         })
                         events_to_remove.append(idx)
                         event_inserted = True
@@ -263,8 +267,8 @@ def insert_secondary_events_into_schedule_across_days(mitarbeiter_df_secondary, 
                 "Mitarbeiter": row["Mitarbeiter"],
                 "Vorgang": row["Vorgang"],
                 "Dauer": row["Dauer"],
-                "Von": row["von"],
-                "Bis": row["bis"],
+                "von": row["von"],
+                "bis": row["bis"],
                 "Ort": row["Ort"],
                 "Ort projektrelevant": row["Ort projektrelevant"],
                 "Projekt-Nr.": row["Projekt-Nr."],
@@ -273,7 +277,7 @@ def insert_secondary_events_into_schedule_across_days(mitarbeiter_df_secondary, 
                 "Gewerk": row["Gewerk"],
                 "Bemerkung": row["Bemerkung"],
                 "Tätigkeit": row["Tätigkeit"],
-                "Fakturierbar": row["fakturierbar"]
+                "fakturierbar": row["fakturierbar"]
             }
             failed_events.append(failed_event)
 
