@@ -264,20 +264,22 @@ def insert_secondary_events_into_schedule_across_days(mitarbeiter_df_secondary, 
         if not event_inserted:
             # Kein passender Slot in keiner Woche gefunden
             failed_event = {
-                "Mitarbeiter": row["Mitarbeiter"],
-                "Vorgang": row["Vorgang"],
-                "Dauer": row["Dauer"],
+                "KW": "",
+                "Datum": row["Datum"].date() ,
                 "von": row["von"],
                 "bis": row["bis"],
+                "Dauer": row["Dauer"],
+                "fakturierbar": row["fakturierbar"],
+                "Vorgang": row["Vorgang"],
+                "Mitarbeiter": row["Mitarbeiter"],
+                "Tätigkeit": row["Tätigkeit"],
+                "Bemerkung": row["Bemerkung"],
                 "Ort": row["Ort"],
                 "Ort projektrelevant": row["Ort projektrelevant"],
                 "Projekt-Nr.": row["Projekt-Nr."],
                 "Projektbezeichnung": row["Projektbezeichnung"],
                 "Dienstleistung": row["Dienstleistung"],
-                "Gewerk": row["Gewerk"],
-                "Bemerkung": row["Bemerkung"],
-                "Tätigkeit": row["Tätigkeit"],
-                "fakturierbar": row["fakturierbar"]
+                "Gewerk": row["Gewerk"]
             }
             failed_events.append(failed_event)
 
